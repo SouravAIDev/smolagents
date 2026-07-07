@@ -1,291 +1,467 @@
-<!---
-Copyright 2024 The HuggingFace Team. All rights reserved.
+# Book Finder Agent
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+A production-ready retrieval augmented generation (RAG) agent for finding relevant book information through semantic search, supporting multi-filter queries, pagination, and evidence-backed responses with proper citations.
 
-    http://www.apache.org/licenses/LICENSE-2.0
+## Overview
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
-<p align="center">
-    <!-- Uncomment when CircleCI is set up
-    <a href="https://circleci.com/gh/huggingface/accelerate"><img alt="Build" src="https://img.shields.io/circleci/build/github/huggingface/transformers/master"></a>
-    -->
-    <a href="https://github.com/huggingface/smolagents/blob/main/LICENSE"><img alt="License" src="https://img.shields.io/github/license/huggingface/smolagents.svg?color=blue"></a>
-    <a href="https://huggingface.co/docs/smolagents"><img alt="Documentation" src="https://img.shields.io/website/http/huggingface.co/docs/smolagents/index.html.svg?down_color=red&down_message=offline&up_message=online"></a>
-    <a href="https://github.com/huggingface/smolagents/releases"><img alt="GitHub release" src="https://img.shields.io/github/release/huggingface/smolagents.svg"></a>
-    <a href="https://github.com/huggingface/smolagents/blob/main/CODE_OF_CONDUCT.md"><img alt="Contributor Covenant" src="https://img.shields.io/badge/Contributor%20Covenant-v2.0%20adopted-ff69b4.svg"></a>
-    <a href="https://deepwiki.com/huggingface/smolagents"><img src="https://deepwiki.com/badge.svg" alt="Ask DeepWiki"></a>
-</p>
+The Book Finder Agent implements an advanced book discovery system that orchestrates multiple execution flows:
 
-<h3 align="center">
-  <div style="display:flex;flex-direction:row;">
-    <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/smolagents/smolagents.png" alt="Hugging Face mascot as James Bond" width=400px>
-    <p>Agents that think in code!</p>
-  </div>
-</h3>
+- **Flow A (Standard Processing)**: Semantic search across book metadata with multi-filter composition
+- **Flow B (Show-More Pagination)**: Session-based pagination for browsing additional results
+- **Flow C (Pre-Filtered Questions)**: JSONB-based filtering applied to cached session documents
 
-`smolagents` is a library that enables you to run powerful agents in a few lines of code. It offers:
+## Architecture
 
-✨ **Simplicity**: the logic for agents fits in ~1,000 lines of code (see [agents.py](https://github.com/huggingface/smolagents/blob/main/src/smolagents/agents.py)). We kept abstractions to their minimal shape above raw code!
+The system is built on the LLM Studio framework and uses a modular architecture:
 
-🧑‍💻 **First-class support for Code Agents**. Our [`CodeAgent`](https://huggingface.co/docs/smolagents/reference/agents#smolagents.CodeAgent) writes its actions in code (as opposed to "agents being used to write code"). To make it secure, we support executing in sandboxed environments via [Blaxel](https://blaxel.ai), [E2B](https://e2b.dev/), [Modal](https://modal.com/), or Docker.
-
-🤗 **Hub integrations**: you can [share/pull tools or agents to/from the Hub](https://huggingface.co/docs/smolagents/reference/tools#smolagents.Tool.from_hub) for instant sharing of the most efficient agents!
-
-🌐 **Model-agnostic**: smolagents supports any LLM. It can be a local `transformers` or `ollama` model, one of [many providers on the Hub](https://huggingface.co/blog/inference-providers), or any model from OpenAI, Anthropic and many others via our [LiteLLM](https://www.litellm.ai/) integration.
-
-👁️ **Modality-agnostic**: Agents support text, vision, video, even audio inputs! Cf [this tutorial](https://huggingface.co/docs/smolagents/examples/web_browser) for vision.
-
-🛠️ **Tool-agnostic**: you can use tools from any [MCP server](https://huggingface.co/docs/smolagents/reference/tools#smolagents.ToolCollection.from_mcp), from [LangChain](https://huggingface.co/docs/smolagents/reference/tools#smolagents.Tool.from_langchain), you can even use a [Hub Space](https://huggingface.co/docs/smolagents/reference/tools#smolagents.Tool.from_space) as a tool.
-
-Full documentation can be found [here](https://huggingface.co/docs/smolagents/index).
-
-> [!NOTE]
-> Check out our [launch blog post](https://huggingface.co/blog/smolagents) to learn more about `smolagents`!
-
-## Quick demo
-
-First install the package with a default set of tools:
-```bash
-pip install "smolagents[toolkit]"
 ```
-Then define your agent, give it the tools it needs and run it!
-```py
-from smolagents import CodeAgent, WebSearchTool, InferenceClientModel
-
-model = InferenceClientModel()
-agent = CodeAgent(tools=[WebSearchTool()], model=model, stream_outputs=True)
-
-agent.run("How many seconds would it take for a leopard at full speed to run through Pont des Arts?")
+run.py (Flask Application Entry Point)
+    ↓
+book_finder_agent.py (Core Orchestration Agent)
+    ↓
+┌─────────────────────────────────────────────────┐
+│ Utility Mixins                                  │
+├─────────────────────────────────────────────────┤
+│ • DatabaseRetrievalUtils                        │
+│ • BookFinderUtilities                           │
+│ • ShowMoreDetailsUtils                          │
+│ • CitationUtils                                 │
+│ • AIEmbeddingUtils                              │
+└─────────────────────────────────────────────────┘
+    ↓
+┌─────────────────────────────────────────────────┐
+│ External Tools                                  │
+├─────────────────────────────────────────────────┤
+│ • SQLExecutorTool (PostgreSQL + pgvector)       │
+│ • LLMConfigurationTool (Prompt Engineering)     │
+│ • SemanticSimilarityTool (Embeddings)           │
+│ • CitationTool (Citation Generation)            │
+└─────────────────────────────────────────────────┘
 ```
 
-https://github.com/user-attachments/assets/84b149b4-246c-40c9-a48d-ba013b08e600
+## Features
 
-You can even share your agent to the Hub, as a Space repository:
-```py
-agent.push_to_hub("m-ric/my_agent")
+### Multi-Filter Book Search
 
-# agent.from_hub("m-ric/my_agent") to load an agent from Hub
+Supports 17 distinct filter types for precise book discovery:
+
+- Author Details & Biography
+- Book Title, Summary, Publication Date
+- Genre, Audience, ISBN, Publisher, Imprint
+- Awards/Prizes, Location, Section, Character
+- Supporting Excerpts & Quotes
+
+### Semantic Search with Embeddings
+
+- Uses pgvector for cosine similarity search
+- Configurable similarity thresholds (default: 0.3)
+- Supports both soft (semantic) and hard (exact) filtering
+- Efficient vector-based retrieval across multiple tables
+
+### Session Management
+
+- Stateful pagination via session context table
+- Automatic cleanup of old sessions (30-day default)
+- JSONB-based metadata storage for flexible filtering
+- Display state tracking to prevent duplicate results
+
+### Citation & Evidence
+
+- Markdown-based citation parsing from LLM responses
+- Fuzzy matching for quote location detection
+- Citation enrichment with book metadata (ISBN, publisher, dates)
+- HTML formatting for UI consumption
+
+### Scoring & Ranking
+
+- Multi-weighted relevance scoring (context: 0.5, document: 0.2, keyword: 0.3)
+- Configurable chunk retrieval boost for excerpt-backed results
+- Threshold-based row reduction for quality control
+- Normalization of final scores to [0, 1] range
+
+## Installation
+
+### Prerequisites
+
+- Python 3.9+
+- PostgreSQL 12+ with pgvector extension
+- Redis 6.0+ (for caching and session state)
+- Google Cloud SDK (for Vertex AI integrations)
+
+### Setup
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd book-finder-agent
+   ```
+
+2. **Create virtual environment**
+   ```bash
+   python -m venv venv
+   source venv/bin/activate  # On Windows: venv\Scripts\activate
+   ```
+
+3. **Install dependencies**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+4. **Configure environment**
+   ```bash
+   cp .env.example .env
+   # Edit .env with your actual configuration values
+   ```
+
+5. **Initialize database**
+   ```bash
+   # Run SQL templates to create required tables
+   # See queries/ directory for DDL scripts
+   ```
+
+## Configuration
+
+All configuration is managed through environment variables (see `.env.example` for complete reference):
+
+### Critical Settings
+
+```env
+# Database
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=book_finder_db
+DB_USER=postgres
+DB_PASSWORD=your-password
+
+# Embeddings
+EMBEDDING_MODEL=text-embedding-3-small
+EMBEDDING_DIMENSIONS=1536
+
+# LLM
+LLM_MODEL=gpt-4
+OPENAI_API_KEY=sk-...
+
+# Agent Behavior
+MAX_BOOKS_PER_RESPONSE=3
+SIMILARITY_THRESHOLD=0.3
+FILTER_SIMILARITY_THRESHOLD=0.65
 ```
 
-Our library is LLM-agnostic: you could switch the example above to any inference provider.
+### Scoring Configuration
 
-<details>
-<summary> <b>InferenceClientModel, gateway for all <a href="https://huggingface.co/docs/inference-providers/index">inference providers</a> supported on HF</b></summary>
-
-```py
-from smolagents import InferenceClientModel
-
-model = InferenceClientModel(
-    model_id="deepseek-ai/DeepSeek-R1",
-    provider="together",
-)
-```
-</details>
-<details>
-<summary> <b>LiteLLM to access 100+ LLMs</b></summary>
-
-```py
-from smolagents import LiteLLMModel
-
-model = LiteLLMModel(
-    model_id="anthropic/claude-4-sonnet-latest",
-    temperature=0.2,
-    api_key=os.environ["ANTHROPIC_API_KEY"]
-)
-```
-</details>
-<details>
-<summary> <b>OpenAI-compatible servers: Together AI</b></summary>
-
-```py
-import os
-from smolagents import OpenAIModel
-
-model = OpenAIModel(
-    model_id="deepseek-ai/DeepSeek-R1",
-    api_base="https://api.together.xyz/v1/", # Leave this blank to query OpenAI servers.
-    api_key=os.environ["TOGETHER_API_KEY"], # Switch to the API key for the server you're targeting.
-)
-```
-</details>
-<details>
-<summary> <b>OpenAI-compatible servers: OpenRouter</b></summary>
-
-```py
-import os
-from smolagents import OpenAIModel
-
-model = OpenAIModel(
-    model_id="openai/gpt-4o",
-    api_base="https://openrouter.ai/api/v1", # Leave this blank to query OpenAI servers.
-    api_key=os.environ["OPENROUTER_API_KEY"], # Switch to the API key for the server you're targeting.
-)
+```env
+CONTEXT_WEIGHT_SCORE=0.5      # Weight for context relevance
+DOCUMENT_WEIGHT_SCORE=0.2     # Weight for document relevance
+KEYWORD_WEIGHT_SCORE=0.3      # Weight for keyword matching
+CHUNK_RETRIEVAL_DOCUMENT_BOOST=0.2  # Bonus for excerpt-backed results
 ```
 
-</details>
-<details>
-<summary> <b>Local `transformers` model</b></summary>
+## Usage
 
-```py
-from smolagents import TransformersModel
-
-model = TransformersModel(
-    model_id="Qwen/Qwen3-Next-80B-A3B-Thinking",
-    max_new_tokens=4096,
-    device_map="auto"
-)
-```
-</details>
-<details>
-<summary> <b>Azure models</b></summary>
-
-```py
-import os
-from smolagents import AzureOpenAIModel
-
-model = AzureOpenAIModel(
-    model_id = os.environ.get("AZURE_OPENAI_MODEL"),
-    azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT"),
-    api_key=os.environ.get("AZURE_OPENAI_API_KEY"),
-    api_version=os.environ.get("OPENAI_API_VERSION")    
-)
-```
-</details>
-<details>
-<summary> <b>Amazon Bedrock models</b></summary>
-
-```py
-import os
-from smolagents import AmazonBedrockModel
-
-model = AmazonBedrockModel(
-    model_id = os.environ.get("AMAZON_BEDROCK_MODEL_ID") 
-)
-```
-</details>
-
-## CLI
-
-You can run agents from CLI using two commands: `smolagent` and `webagent`.
-
-`smolagent` is a generalist command to run a multi-step `CodeAgent` that can be equipped with various tools.
+### Starting the Service
 
 ```bash
-# Run with direct prompt and options
-smolagent "Plan a trip to Tokyo, Kyoto and Osaka between Mar 28 and Apr 7."  --model-type "InferenceClientModel" --model-id "Qwen/Qwen3-Next-80B-A3B-Thinking" --imports pandas numpy --tools web_search
+# Development
+python run.py
 
-# Run in interactive mode (launches setup wizard when no prompt provided)
-smolagent
+# Production with Gunicorn
+gunicorn -w 4 -b 0.0.0.0:5000 run:app
 ```
 
-Interactive mode guides you through:
-- Agent type selection (CodeAgent vs ToolCallingAgent)  
-- Tool selection from available toolbox
-- Model configuration (type, ID, API settings)
-- Advanced options like additional imports
-- Task prompt input
+### API Endpoints
 
-Meanwhile `webagent` is a specific web-browsing agent using [helium](https://github.com/mherrmann/helium) (read more [here](https://github.com/huggingface/smolagents/blob/main/src/smolagents/vision_web_browser.py)).
+#### Health Check
 
-For instance:
 ```bash
-webagent "go to xyz.com/men, get to sale section, click the first clothing item you see. Get the product details, and the price, return them. note that I'm shopping from France" --model-type "LiteLLMModel" --model-id "gpt-5"
+GET /utility/book-finder-agent/
+GET /utility/book-finder-agent/health
 ```
 
-## How do Code agents work?
+Response: Agent status indicator
 
-Our [`CodeAgent`](https://huggingface.co/docs/smolagents/reference/agents#smolagents.CodeAgent) works mostly like classical ReAct agents - the exception being that the LLM engine writes its actions as Python code snippets.
+#### Prediction (Book Search)
 
-```mermaid
-flowchart TB
-    Task[User Task]
-    Memory[agent.memory]
-    Generate[Generate from agent.model]
-    Execute[Execute Code action - Tool calls are written as functions]
-    Answer[Return the argument given to 'final_answer']
+```bash
+POST /utility/book-finder-agent/prediction
+Content-Type: application/json
 
-    Task -->|Add task to agent.memory| Memory
-
-    subgraph ReAct[ReAct loop]
-        Memory -->|Memory as chat messages| Generate
-        Generate -->|Parse output to extract code action| Execute
-        Execute -->|No call to 'final_answer' tool => Store execution logs in memory and keep running| Memory
-    end
-    
-    Execute -->|Call to 'final_answer' tool| Answer
-
-    %% Styling
-    classDef default fill:#d4b702,stroke:#8b7701,color:#ffffff
-    classDef io fill:#4a5568,stroke:#2d3748,color:#ffffff
-    
-    class Task,Answer io
-```
-
-Actions are now Python code snippets. Hence, tool calls will be performed as Python function calls. For instance, here is how the agent can perform web search over several websites in one single action:
-```py
-requests_to_search = ["gulf of mexico america", "greenland denmark", "tariffs"]
-for request in requests_to_search:
-    print(f"Here are the search results for {request}:", web_search(request))
-```
-
-Writing actions as code snippets is demonstrated to work better than the current industry practice of letting the LLM output a dictionary of the tools it wants to call: [uses 30% fewer steps](https://huggingface.co/papers/2402.01030) (thus 30% fewer LLM calls) and [reaches higher performance on difficult benchmarks](https://huggingface.co/papers/2411.01747). Head to [our high-level intro to agents](https://huggingface.co/docs/smolagents/conceptual_guides/intro_agents) to learn more on that.
-
-Since code execution can be a serious security concern (arbitrary code execution!), **you should run agent code in a sandbox**. We support several options:
-  - [E2B](https://e2b.dev/), [Blaxel](https://blaxel.ai), [Modal](https://modal.com/) — managed cloud sandboxes, simplest to set up
-  - [Docker](https://www.docker.com/) — self-hosted container isolation
-
-The built-in `LocalPythonExecutor` is **not a security sandbox**. It applies some restrictions but can be bypassed and must not be used as a security boundary.
-
-Alongside [`CodeAgent`](https://huggingface.co/docs/smolagents/reference/agents#smolagents.CodeAgent), we also provide the standard [`ToolCallingAgent`](https://huggingface.co/docs/smolagents/reference/agents#smolagents.ToolCallingAgent) which writes actions as JSON/text blobs. You can pick whichever style best suits your use case.
-
-## How smol is this library?
-
-We strived to keep abstractions to a strict minimum: the main code in `agents.py` has <1,000 lines of code.
-Still, we implement several types of agents: `CodeAgent` writes its actions as Python code snippets, and the more classic `ToolCallingAgent` leverages built-in tool calling methods. We also have multi-agent hierarchies, import from tool collections, remote code execution, vision models...
-
-By the way, why use a framework at all? Well, because a big part of this stuff is non-trivial. For instance, the code agent has to keep a consistent format for code throughout its system prompt, its parser, the execution. So our framework handles this complexity for you. But of course we still encourage you to hack into the source code and use only the bits that you need, to the exclusion of everything else!
-
-## How strong are open models for agentic workflows?
-
-We've created [`CodeAgent`](https://huggingface.co/docs/smolagents/reference/agents#smolagents.CodeAgent) instances with some leading models, and compared them on [this benchmark](https://huggingface.co/datasets/m-ric/agents_medium_benchmark_2) that gathers questions from a few different benchmarks to propose a varied blend of challenges.
-
-[Find the benchmarking code here](https://github.com/huggingface/smolagents/blob/main/examples/smolagents_benchmark/run.py) for more detail on the agentic setup used, and see a comparison of using LLMs code agents compared to vanilla (spoilers: code agents works better).
-
-<p align="center">
-    <img src="https://huggingface.co/datasets/huggingface/documentation-images/resolve/main/smolagents/benchmark_code_agents.jpeg" alt="benchmark of different models on agentic workflows. Open model DeepSeek-R1 beats closed-source models." width=60% max-width=500px>
-</p>
-
-This comparison shows that open-source models can now take on the best closed models!
-
-## Security
-
-Security is a critical consideration when working with code-executing agents. Ensure you are using one of the sandboxed execution options that provide isolation from untrusted code.
-
-**Warning:** `LocalPythonExecutor` provides best-effort mitigations only and is **not a security boundary**. Do not use it to run untrusted code.
-
-For security policies, vulnerability reporting, and more information on secure agent execution, please see our [Security Policy](SECURITY.md).
-
-## Contribute
-
-Everyone is welcome to contribute, get started with our [contribution guide](https://github.com/huggingface/smolagents/blob/main/CONTRIBUTING.md).
-
-## Cite smolagents
-
-If you use `smolagents` in your publication, please cite it by using the following BibTeX entry.
-
-```bibtex
-@Misc{smolagents,
-  title =        {`smolagents`: a smol library to build great agentic systems.},
-  author =       {Aymeric Roucher and Albert Villanova del Moral and Thomas Wolf and Leandro von Werra and Erik Kaunismäki},
-  howpublished = {\url{https://github.com/huggingface/smolagents}},
-  year =         {2025}
+{
+  "agent_id": "agent-123",
+  "concierge_id": "concierge-456",
+  "agent_arguments": {
+    "user_query": "Find books about climate change by scientists",
+    "genre_details": "Science & Nature",
+    "author_details": "climate scientist",
+    "supporting_excerpts": "global warming evidence"
+  }
 }
 ```
+
+Response:
+```json
+{
+  "response": "Here are relevant books matching your query...",
+  "agent_guide": {
+    "retrieved_documents": [
+      {
+        "book_id": "uuid-123",
+        "title": "The Climate Book",
+        "author_name": "Dr. Jane Smith",
+        "isbn": "978-0-12345-678-9",
+        "similarity_score": 0.87,
+        "final_score": 0.85
+      }
+    ]
+  },
+  "sources": [
+    {
+      "book_id": "uuid-123",
+      "title": "The Climate Book",
+      "author": "Dr. Jane Smith",
+      "isbn": "978-0-12345-678-9",
+      "excerpt": "Excerpt from the book..."
+    }
+  ]
+}
+```
+
+#### Get Configuration Schema
+
+```bash
+GET /utility/book-finder-agent/get_config
+```
+
+Returns: Agent configuration schema for UI builder integration
+
+#### Get LLM Configuration
+
+```bash
+GET /utility/book-finder-agent/get_llm_config
+```
+
+Returns: LLM-specific configuration and prompts
+
+## Filter Types Reference
+
+Each filter type maps to specific database tables and embedding columns:
+
+| Filter Type | Table | Search Column | Mode | 
+|---|---|---|---|
+| `book_summary` | book_metadata_v2 | book_summary_embeddings | soft |
+| `book_title` | book_metadata_v2 | title_embeddings | soft |
+| `author_details` | book_author_v2 | author_name_embeddings | soft |
+| `genre_details` | book_metadata_v2 | genre_embeddings | hard |
+| `publisher_details` | book_metadata_v2 | publisher_name_embeddings | soft |
+| `supporting_excerpts` | book_excerpts_v2 | excerpt_embeddings | soft |
+
+(See `book_helper.py` for complete mapping)
+
+## Database Schema
+
+### Primary Tables
+
+- `book_metadata_v2` - Book information (title, ISBN, genre, summary)
+- `book_author_v2` - Author associations
+- `book_author_normalized` - Normalized author data
+- `book_genre_v2` - Genre classifications
+- `book_award_v2` - Award information
+- `book_excerpts_v2` - Supporting manuscript excerpts
+- `book_publisher` - Publisher metadata
+
+### Session Management Tables
+
+- `book_retrieved_document_details` - Session context and pagination state
+  - Columns: `session_id`, `book_id`, `question`, `book_data` (JSONB), `is_displayed`, `similarity_score`, `created_at`, `updated_at`
+  - Indexes: session_id, is_displayed, similarity_score, created_at
+
+### SQL Templates
+
+Query templates in `queries/` directory:
+
+- `vector_query.sql` - Core pgvector similarity search
+- `create_chat_data_table.sql` - Session context schema
+- `insert_retrieved_documents.sql` - Pagination data persistence
+- `fetch_show_more_docs.sql` - Pagination retrieval
+- `mark_books_as_displayed.sql` - Display state updates
+- `fetch_latest_question_for_session.sql` - Context recovery
+- `filter_query_exact_match.sql` - Hard filter matching
+- `fetch_filtered_documents.sql` - JSONB filtering
+- `upsert_retrieved_documents.sql` - Lifecycle management
+- `vector_filter_query_with_join.sql` - Complex multi-table joins
+- `fallback_fetch_show_more_docs.sql` - Fallback retrieval
+- `retrieve_final_chunks.sql` - Excerpt enrichment
+
+## Execution Flows
+
+### Flow A: Standard Request Processing
+
+1. **A1-A3**: Input validation and normalization
+2. **A4**: Semantic search across filter types
+   - Generate query embedding
+   - Execute pgvector searches for each active filter
+   - Aggregate results with similarity scores
+3. **A5**: Content enrichment and scoring
+   - Calculate final relevance scores
+   - Reduce to top-scoring books
+   - Retrieve supporting excerpts
+   - Store in session context
+   - Generate LLM response with citations
+
+### Flow B: Pagination (Show-More)
+
+1. **B1**: Fetch undisplayed documents from session
+   - Query cached results where `is_displayed = FALSE`
+   - Mark selected books as displayed
+   - Return ranked pagination results
+
+### Flow C: Pre-Filtered Questions
+
+1. **C1**: Apply filters to session context
+   - Fetch latest question for session
+   - Apply JSONB filters to `book_data`
+   - Return filtered results
+
+## Performance Tuning
+
+### Database Optimization
+
+1. **Create pgvector indexes**:
+   ```sql
+   CREATE INDEX idx_book_summary_embeddings ON book_metadata_v2 USING ivfflat (book_summary_embeddings vector_cosine_ops);
+   ```
+
+2. **Connection pooling**:
+   - `DB_POOL_SIZE=20` (default)
+   - `DB_MAX_OVERFLOW=10` (burst capacity)
+   - `DB_POOL_RECYCLE=3600` (idle connection timeout)
+
+3. **Redis caching**:
+   - Session state in Redis
+   - Configurable TTL based on `SESSION_EXPIRATION_DAYS`
+
+### Scoring Optimization
+
+Adjust weights to improve result relevance:
+
+```env
+CONTEXT_WEIGHT_SCORE=0.5      # Increase for more context-aware ranking
+DOCUMENT_WEIGHT_SCORE=0.2     # Increase for stricter document matching
+KEYWORD_WEIGHT_SCORE=0.3      # Increase for keyword importance
+```
+
+## Troubleshooting
+
+### No Results Returned
+
+1. Check similarity thresholds:
+   ```python
+   # Current: SIMILARITY_THRESHOLD=0.3 (30% similarity)
+   # Try lowering to 0.2 for broader matches
+   ```
+
+2. Verify embeddings generated:
+   ```bash
+   # Check if embedding_dimensions match (usually 1536)
+   curl http://localhost:5000/utility/book-finder-agent/get_llm_config
+   ```
+
+3. Check database indexes:
+   ```sql
+   SELECT * FROM pg_stat_user_indexes WHERE idx_definition LIKE '%embedding%';
+   ```
+
+### Slow Response Times
+
+1. Increase `DB_POOL_SIZE` for more concurrent connections
+2. Enable Redis caching for frequently accessed data
+3. Add database indexes on commonly filtered columns
+4. Reduce `MAX_BOOKS_PER_RESPONSE` to limit processing
+
+### Citation Failures
+
+1. Verify LLM response format (must include `[source_N]` markers)
+2. Check `retrieved_documents` structure matches citation extraction logic
+3. Enable `SHOW_HEADERS=True` for debugging output
+
+## Monitoring & Logging
+
+### Log Levels
+
+```env
+LOG_LEVEL=INFO           # Development: DEBUG, Production: INFO
+LOG_FORMAT=json          # JSON formatting for parsing
+GOOGLE_CLOUD_LOGGING=True  # Stream to Google Cloud Logging
+```
+
+### Key Metrics
+
+- Query latency (embedding generation + search)
+- Results per query (books retrieved)
+- Citation success rate
+- Session state size
+- Database connection pool utilization
+
+### Health Check
+
+```bash
+curl http://localhost:5000/utility/book-finder-agent/health
+```
+
+## Contributing
+
+To extend the agent:
+
+1. **Add new filter type**:
+   - Update `BookFilterType` enum in `book_helper.py`
+   - Add `FilterDetails` mapping in `BOOK_FILTER_MAPPING`
+   - Create corresponding SQL templates in `queries/`
+
+2. **Modify scoring logic**:
+   - Adjust weights in `Config.py` or `book_finder_agent_setup.py`
+   - Update `calculate_final_scores()` in `book_finder_utilities.py`
+
+3. **Improve citations**:
+   - Enhance `CitationUtils` methods for better quote matching
+   - Add metadata enrichment for additional book details
+
+## Deployment
+
+### Docker
+
+```dockerfile
+FROM python:3.11-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+EXPOSE 5000
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5000", "run:app"]
+```
+
+### Kubernetes
+
+See `k8s-deployment.yaml` for production deployment configuration with:
+- Resource limits and requests
+- Liveness and readiness probes
+- Environment secret management
+- Horizontal pod autoscaling
+
+### Environment Variables (Production)
+
+Always set critical values:
+
+```bash
+export FLASK_ENV=production
+export SECRET_KEY=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')
+export DB_PASSWORD=secure-password-here
+export OPENAI_API_KEY=sk-...
+```
+
+## License
+
+MIT License - See LICENSE file for details
+
+## Support
+
+For issues, questions, or contributions, please open an issue on GitHub or contact the development team.
+
