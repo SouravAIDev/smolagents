@@ -1,0 +1,300 @@
+# Kubernetes Deployment Configuration for Book Finder Agent
+# This manifest includes Deployment, Service, ConfigMap, and Secrets
+
+---
+# ConfigMap for non-sensitive configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: book-finder-config
+  namespace: default
+  labels:
+    app: book-finder-agent
+    version: v1
+data:
+  FLASK_ENV: "production"
+  FLASK_DEBUG: "False"
+  LOG_LEVEL: "INFO"
+  LOG_FORMAT: "json"
+  GOOGLE_CLOUD_LOGGING: "True"
+  WORKERS: "4"
+  DB_POOL_SIZE: "20"
+  DB_MAX_OVERFLOW: "10"
+  DB_POOL_RECYCLE: "3600"
+  EMBEDDING_MODEL: "text-embedding-3-small"
+  EMBEDDING_DIMENSIONS: "1536"
+  SIMILARITY_THRESHOLD: "0.3"
+  FILTER_SIMILARITY_THRESHOLD: "0.65"
+  MAX_BOOKS_PER_RESPONSE: "3"
+  BOOKS_PER_RESULT: "5"
+  MAX_EXCERPTS_PER_BOOK: "5"
+  MAX_BOOK_IDS: "300"
+  DEFAULT_SHOW_MORE_LENGTH: "3"
+  MAX_SHOW_MORE_BOOKS: "20"
+  CONTEXT_WEIGHT_SCORE: "0.5"
+  DOCUMENT_WEIGHT_SCORE: "0.2"
+  KEYWORD_WEIGHT_SCORE: "0.3"
+  CHUNK_RETRIEVAL_DOCUMENT_BOOST: "0.2"
+  GENERATE_RESPONSE_FROM_DOCS: "True"
+  SMART_RESPONSE_ADJUSTMENT: "True"
+  SHOW_HEADERS: "False"
+  SESSION_EXPIRATION_DAYS: "30"
+  API_RATE_LIMIT: "100"
+  API_TIMEOUT: "30"
+
+---
+# Secret for sensitive configuration
+apiVersion: v1
+kind: Secret
+metadata:
+  name: book-finder-secrets
+  namespace: default
+  labels:
+    app: book-finder-agent
+type: Opaque
+stringData:
+  # Database credentials - REPLACE WITH ACTUAL VALUES
+  DB_HOST: "postgres.default.svc.cluster.local"
+  DB_PORT: "5432"
+  DB_NAME: "book_finder_db"
+  DB_USER: "postgres"
+  DB_PASSWORD: "change-me-in-production"
+  
+  # Redis credentials
+  REDIS_HOST: "redis.default.svc.cluster.local"
+  REDIS_PORT: "6379"
+  REDIS_PASSWORD: ""
+  
+  # LLM API Keys - REPLACE WITH ACTUAL VALUES
+  OPENAI_API_KEY: "sk-..."
+  ANTHROPIC_API_KEY: "sk-ant-..."
+  GOOGLE_GENAI_API_KEY: "key-..."
+  
+  # GCP Configuration
+  GCP_PROJECT_ID: "your-project-id"
+  GOOGLE_APPLICATION_CREDENTIALS: "/var/secrets/google/key.json"
+  
+  # Flask Secret
+  SECRET_KEY: "change-me-in-production"
+
+---
+# Service for exposing the agent
+apiVersion: v1
+kind: Service
+metadata:
+  name: book-finder-agent-service
+  namespace: default
+  labels:
+    app: book-finder-agent
+spec:
+  type: ClusterIP
+  selector:
+    app: book-finder-agent
+  ports:
+    - name: http
+      port: 80
+      targetPort: 5000
+      protocol: TCP
+  sessionAffinity: ClientIP
+  sessionAffinityConfig:
+    clientIP:
+      timeoutSeconds: 10800
+
+---
+# Deployment for the Book Finder Agent
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: book-finder-agent
+  namespace: default
+  labels:
+    app: book-finder-agent
+    version: v1
+spec:
+  replicas: 3
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: book-finder-agent
+  template:
+    metadata:
+      labels:
+        app: book-finder-agent
+        version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+    spec:
+      serviceAccountName: book-finder-agent
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+      
+      containers:
+      - name: book-finder-agent
+        image: book-finder-agent:latest
+        imagePullPolicy: IfNotPresent
+        
+        ports:
+        - name: http
+          containerPort: 5000
+          protocol: TCP
+        
+        # Environment variables from ConfigMap
+        envFrom:
+        - configMapRef:
+            name: book-finder-config
+        - secretRef:
+            name: book-finder-secrets
+        
+        # Health checks
+        livenessProbe:
+          httpGet:
+            path: /utility/book-finder-agent/
+            port: http
+          initialDelaySeconds: 40
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        
+        readinessProbe:
+          httpGet:
+            path: /utility/book-finder-agent/
+            port: http
+          initialDelaySeconds: 20
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+        
+        # Resource management
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        
+        # Security context
+        securityContext:
+          allowPrivilegeEscalation: false
+          readOnlyRootFilesystem: false
+          capabilities:
+            drop:
+              - ALL
+        
+        # Volume mounts
+        volumeMounts:
+        - name: tmp
+          mountPath: /tmp
+        - name: cache
+          mountPath: /app/.cache
+        - name: google-cloud-key
+          mountPath: /var/secrets/google
+          readOnly: true
+      
+      # Volumes
+      volumes:
+      - name: tmp
+        emptyDir:
+          sizeLimit: 1Gi
+      - name: cache
+        emptyDir:
+          sizeLimit: 500Mi
+      - name: google-cloud-key
+        secret:
+          secretName: book-finder-gcp-key
+          optional: true
+      
+      # Pod disruption policy
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - book-finder-agent
+              topologyKey: kubernetes.io/hostname
+      
+      # Termination policy
+      terminationGracePeriodSeconds: 30
+
+---
+# ServiceAccount for RBAC
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: book-finder-agent
+  namespace: default
+  labels:
+    app: book-finder-agent
+
+---
+# HorizontalPodAutoscaler for dynamic scaling
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: book-finder-agent-hpa
+  namespace: default
+  labels:
+    app: book-finder-agent
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: book-finder-agent
+  minReplicas: 3
+  maxReplicas: 10
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 70
+  - type: Resource
+    resource:
+      name: memory
+      target:
+        type: Utilization
+        averageUtilization: 80
+  behavior:
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 60
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 30
+      - type: Pods
+        value: 2
+        periodSeconds: 30
+      selectPolicy: Max
+
+---
+# PodDisruptionBudget for high availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: book-finder-agent-pdb
+  namespace: default
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: book-finder-agent
+

@@ -1,140 +1,459 @@
-<!---
-Copyright 2025 The HuggingFace Team. All rights reserved.
+# Contributing to Book Finder Agent
 
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
+Thank you for your interest in contributing to the Book Finder Agent! This document provides guidelines and instructions for contributing to this project.
 
-    http://www.apache.org/licenses/LICENSE-2.0
+## Table of Contents
 
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
--->
+1. [Code of Conduct](#code-of-conduct)
+2. [Getting Started](#getting-started)
+3. [Development Setup](#development-setup)
+4. [Making Changes](#making-changes)
+5. [Testing](#testing)
+6. [Code Style](#code-style)
+7. [Git Workflow](#git-workflow)
+8. [Submitting Changes](#submitting-changes)
+9. [Documentation](#documentation)
+10. [Troubleshooting](#troubleshooting)
 
-# Contribute to smolagents
+## Code of Conduct
 
-Everyone is welcome to contribute, and we value everybody's contribution. Code
-contributions are not the only way to help the community. Answering questions, helping
-others, and improving the documentation are also immensely valuable.
+We are committed to providing a welcoming and inclusive environment for all contributors. Please be respectful, constructive, and professional in all interactions.
 
-It also helps us if you spread the word! Reference the library in blog posts
-about the awesome projects it made possible, shout out on Twitter every time it has
-helped you, or simply ⭐️ the repository to say thank you.
+## Getting Started
 
-However you choose to contribute, please be mindful and respect our
-[code of conduct](https://github.com/huggingface/smolagents/blob/main/CODE_OF_CONDUCT.md).
+Before you begin:
 
-**This guide was heavily inspired by the awesome [scikit-learn guide to contributing](https://github.com/scikit-learn/scikit-learn/blob/main/CONTRIBUTING.md).**
+1. Fork the repository on GitHub
+2. Clone your fork locally: `git clone https://github.com/your-username/book-finder-agent.git`
+3. Add the upstream remote: `git remote add upstream https://github.com/original-repo/book-finder-agent.git`
+4. Create a new branch for your feature: `git checkout -b feature/your-feature-name`
 
-## Ways to contribute
+## Development Setup
 
-There are several ways you can contribute to smolagents.
+### Prerequisites
 
-* Submit issues related to bugs or desired new features.
-* Contribute to the examples or to the documentation.
-* Fix outstanding issues with the existing code.
+- Python 3.9+
+- Docker and Docker Compose
+- PostgreSQL client tools (optional, for direct database access)
+- Git
 
-> All contributions are equally valuable to the community. 🥰
+### Initial Setup
 
-## Submitting a bug-related issue or feature request
+1. Copy the environment file:
+   ```bash
+   make env-setup
+   ```
 
-At any moment, feel welcome to open an issue, citing your exact error traces and package versions if it's a bug.
-It's often even better to open a PR with your proposed fixes/changes!
+2. Update `.env` with your configuration:
+   ```bash
+   # Edit .env with your API keys and database settings
+   nano .env
+   ```
 
-Do your best to follow these guidelines when submitting a bug-related issue or a feature
-request. It will make it easier for us to come back to you quickly and with good
-feedback.
+3. Install dependencies:
+   ```bash
+   make install-dev
+   ```
 
-### Did you find a bug?
+4. Start the development environment:
+   ```bash
+   make dev-docker
+   ```
 
-The smolagents library is robust and reliable thanks to users who report the problems they encounter.
+5. Verify the setup:
+   ```bash
+   make health-check
+   ```
 
-Before you report an issue, we would really appreciate it if you could **make sure the bug was not
-already reported** (use the search bar on GitHub under Issues). Your issue should also be related to bugs in the 
-library itself, and not your code. 
+## Making Changes
 
-Once you've confirmed the bug hasn't already been reported, please include the following information in your issue so 
-we can quickly resolve it:
-
-* Your **OS type and version**, as well as your environment versions (versions of rust, python, and dependencies).
-* A short, self-contained, code snippet that allows us to reproduce the bug.
-* The *full* traceback if an exception is raised.
-* Attach any other additional information, like screenshots, you think may help.
-
-### Do you want a new feature?
-
-If there is a new feature you'd like to see in smolagents, please open an issue and describe:
-
-1. What is the *motivation* behind this feature? Is it related to a problem or frustration with the library? Is it 
-   a feature related to something you need for a project? Is it something you worked on and think it could benefit 
-   the community?
-
-   Whatever it is, we'd love to hear about it!
-
-2. Describe your requested feature in as much detail as possible. The more you can tell us about it, the better 
-   we'll be able to help you.
-3. Provide a *code snippet* that demonstrates the feature's usage.
-4. If the feature is related to a paper, please include a link.
-
-If your issue is well written we're already 80% of the way there by the time you create it.
-
-## Do you want to add documentation?
-
-We're always looking for improvements to the documentation that make it more clear and accurate. Please let us know 
-how the documentation can be improved such as typos and any content that is missing, unclear or inaccurate. We'll be 
-happy to make the changes or help you make a contribution if you're interested!
-
-## Fixing outstanding issues
-
-If you notice an issue with the existing code and have a fix in mind, feel free to [start contributing](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/creating-a-pull-request) and open
-a Pull Request!
-
-### Making code changes
-
-To install dev dependencies, run:
-<details>
-<summary><strong>Using pip</strong></summary>
+### Project Structure
 
 ```
-pip install -e ".[dev]"
+book-finder-agent/
+├── book_finder_agent.py          # Main agent orchestration logic
+├── book_finder_agent_setup.py    # Configuration schema
+├── book_finder_agent_trace.py    # Tracing schema
+├── book_helper.py                # Filter definitions and mappings
+├── database_retrieval_utils.py   # Database query utilities
+├── book_finder_utilities.py      # Data processing utilities
+├── citation_helpers.py           # Citation extraction and formatting
+├── show_more_details_utilities.py # Session state management
+├── ai_summary_utils.py           # Embedding operations
+├── run.py                        # Flask application entry point
+├── Config.py                     # Configuration management
+├── requirements.txt              # Python dependencies
+├── Dockerfile                    # Container image definition
+├── docker-compose.yml            # Local development stack
+├── .env.example                  # Example environment configuration
+├── k8s-deployment.yaml           # Kubernetes deployment manifest
+├── Makefile                      # Development task automation
+├── tests/                        # Test suite
+├── queries/                      # SQL templates
+├── scripts/                      # Utility scripts
+└── README.md                     # Project documentation
 ```
 
-</details>
-<details>
-<summary><strong>Using uv</strong></summary>
+### Code Organization Principles
 
-```
-uv pip install -e "smolagents[dev] @ ."
-```
+1. **Separation of Concerns**: Each module has a single, well-defined responsibility
+2. **DRY (Don't Repeat Yourself)**: Reuse code across modules
+3. **SOLID Principles**: Follow solid object-oriented design
+4. **Type Hints**: Use Python type hints for clarity and IDE support
+5. **Error Handling**: Comprehensive exception handling with informative messages
 
-</details>
+### Guidelines for Different File Types
 
-When making changes to the codebase, please check that it follows the repo's code quality requirements by running:
-To check code quality of the source code:
-```
-make quality
-```
+#### Python Files
 
-If the checks fail, you can run the formatter with:
-```
-make style
-```
+- Use type hints for function parameters and return values
+- Add docstrings to all public functions and classes
+- Maximum line length: 120 characters
+- Use meaningful variable names
+- Import statements should be organized (stdlib, third-party, local)
 
-And commit the changes.
+#### SQL Templates (queries/*.sql)
 
-To run tests locally, run this command:
+- Include descriptive comments explaining the query purpose
+- Use parameterized queries to prevent SQL injection
+- Format for readability with proper indentation
+- Test query performance with realistic data volumes
+
+#### Configuration Files
+
+- Document all configuration options
+- Provide sensible defaults
+- Include examples of valid values
+- Separate secrets from non-sensitive configuration
+
+## Testing
+
+### Running Tests
+
 ```bash
+# Run all tests
 make test
+
+# Run tests with coverage
+make test-cov
+
+# Run tests in watch mode
+make test-watch
 ```
-</details>
 
-## I want to become a maintainer of the project. How do I get there?
+### Writing Tests
 
-smolagents is a project led and managed by Hugging Face. We are more than
-happy to have motivated individuals from other organizations join us as maintainers with the goal of helping smolagents
-make a dent in the world of Agents.
+1. Place test files in the `tests/` directory
+2. Name test files as `test_*.py`
+3. Use descriptive test function names: `test_function_does_something_specific`
+4. Include docstrings explaining test purpose
+5. Use fixtures for common setup/teardown
+6. Aim for at least 80% code coverage
 
-If you are such an individual (or organization), please reach out to us and let's collaborate.
+#### Test Template
+
+```python
+import pytest
+from unittest.mock import Mock, patch
+
+class TestYourFeature:
+    """Tests for YourFeature."""
+    
+    @pytest.fixture
+    def setup(self):
+        """Set up test fixtures."""
+        # Your setup code
+        yield
+        # Your teardown code
+    
+    def test_feature_does_something(self, setup):
+        """Test that feature performs expected behavior."""
+        # Arrange
+        input_data = {"key": "value"}
+        
+        # Act
+        result = your_function(input_data)
+        
+        # Assert
+        assert result is not None
+        assert result["expected_key"] == "expected_value"
+```
+
+## Code Style
+
+### Python Style Guide
+
+We follow PEP 8 with some modifications:
+
+```bash
+# Format code automatically
+make format
+
+# Check style compliance
+make lint
+```
+
+### Tools Used
+
+- **Black**: Code formatter (line length: 120)
+- **isort**: Import statement organizer
+- **pylint**: Code quality checker
+- **flake8**: Style guide enforcement
+- **bandit**: Security issue detection
+
+### Example: Properly Formatted Function
+
+```python
+def calculate_book_relevance_score(
+    similarity_score: float,
+    document_count: int,
+    keyword_matches: int,
+    context_weight: float = 0.5,
+    document_weight: float = 0.2,
+    keyword_weight: float = 0.3
+) -> float:
+    """
+    Calculate weighted relevance score for a book.
+    
+    Args:
+        similarity_score: Semantic similarity [0-1]
+        document_count: Number of matching documents
+        keyword_matches: Count of keyword matches
+        context_weight: Weight for context scoring
+        document_weight: Weight for document count
+        keyword_weight: Weight for keyword matches
+    
+    Returns:
+        Weighted relevance score [0-1]
+    
+    Raises:
+        ValueError: If weights don't sum to 1.0
+    """
+    total_weight = context_weight + document_weight + keyword_weight
+    if abs(total_weight - 1.0) > 0.01:  # Allow for floating point error
+        raise ValueError(f"Weights must sum to 1.0, got {total_weight}")
+    
+    # Normalize document and keyword scores
+    normalized_doc_score = min(document_count / 10.0, 1.0)
+    normalized_keyword_score = min(keyword_matches / 5.0, 1.0)
+    
+    # Calculate weighted score
+    final_score = (
+        (similarity_score * context_weight) +
+        (normalized_doc_score * document_weight) +
+        (normalized_keyword_score * keyword_weight)
+    )
+    
+    return max(0.0, min(final_score, 1.0))  # Clamp to [0-1]
+```
+
+## Git Workflow
+
+### Branch Naming
+
+Use descriptive branch names:
+
+- `feature/short-description` - New feature
+- `fix/short-description` - Bug fix
+- `docs/short-description` - Documentation update
+- `refactor/short-description` - Code refactoring
+- `test/short-description` - Test additions
+
+### Commit Messages
+
+Write clear, descriptive commit messages:
+
+```
+[TYPE] Brief description of changes
+
+More detailed explanation if needed. This section should explain
+WHY the change was made, not WHAT was changed (the diff shows that).
+
+Examples:
+- [FEATURE] Add semantic similarity filtering
+- [FIX] Resolve SQL injection vulnerability in query builder
+- [DOCS] Update API endpoint documentation
+- [REFACTOR] Extract utility functions from agent class
+- [TEST] Add coverage for embedding generation
+```
+
+### Working with Branches
+
+```bash
+# Create and switch to feature branch
+git checkout -b feature/add-book-genre-filter
+
+# Make changes and commit
+git add .
+git commit -m "[FEATURE] Add book genre filter with semantic search"
+
+# Keep branch updated with upstream changes
+git fetch upstream
+git rebase upstream/main
+
+# Push to your fork
+git push origin feature/add-book-genre-filter
+```
+
+## Submitting Changes
+
+### Before Submitting
+
+1. Update your branch with latest upstream:
+   ```bash
+   git fetch upstream
+   git rebase upstream/main
+   ```
+
+2. Run the full quality suite:
+   ```bash
+   make quality
+   ```
+
+3. Test in Docker environment:
+   ```bash
+   make docker-up
+   make api-test
+   ```
+
+4. Write/update tests for your changes
+
+5. Update documentation if needed
+
+### Pull Request Process
+
+1. Push your branch to your fork
+2. Create a Pull Request with a clear title and description
+3. Link related issues if applicable
+4. Describe the changes and motivation
+5. Include screenshots/examples for UI changes
+6. Ensure CI/CD checks pass
+7. Request review from maintainers
+8. Address review feedback
+
+### Pull Request Template
+
+```markdown
+## Description
+Briefly describe the changes in this PR.
+
+## Motivation and Context
+Why is this change needed? What problem does it solve?
+
+## Related Issues
+Closes #123
+
+## Type of Change
+- [ ] Feature (new functionality)
+- [ ] Bug fix
+- [ ] Documentation update
+- [ ] Refactoring
+- [ ] Performance improvement
+
+## Testing
+Describe tests added or modified.
+
+## Screenshots (if applicable)
+Add screenshots for UI changes.
+
+## Checklist
+- [ ] Code follows style guidelines
+- [ ] Tests added/updated
+- [ ] Documentation updated
+- [ ] No new warnings generated
+- [ ] All tests pass
+```
+
+## Documentation
+
+### Updating Documentation
+
+1. Update relevant `.md` files in the project root
+2. Include docstrings in Python code
+3. Update API documentation in README if endpoints change
+4. Add examples for new features
+
+### Documentation Standards
+
+- Use clear, concise language
+- Include code examples where applicable
+- Link to related sections
+- Keep documentation up-to-date with code changes
+- Use proper Markdown formatting
+
+## Troubleshooting
+
+### Common Issues
+
+#### "ModuleNotFoundError: No module named 'book_finder_agent'"
+
+```bash
+# Ensure virtual environment is activated
+source .venv/bin/activate
+
+# Reinstall dependencies
+make install-dev
+```
+
+#### Docker containers won't start
+
+```bash
+# Check Docker status
+docker-compose ps
+
+# View detailed logs
+make docker-logs SERVICE=book_finder_agent FOLLOW=1
+
+# Reset everything
+make docker-reset
+make docker-up
+```
+
+#### Database connection errors
+
+```bash
+# Verify database is running
+make docker-logs SERVICE=postgres FOLLOW=1
+
+# Reset database
+make db-reset
+
+# Connect directly to verify
+make db-shell
+```
+
+#### Tests failing
+
+```bash
+# Run tests with verbose output
+make test
+
+# Check test coverage
+make test-cov
+
+# Run specific test
+. .venv/bin/activate && pytest tests/test_book_finder_agent.py::TestBookFinderAgent::test_name -v
+```
+
+### Getting Help
+
+1. Check the [README.md](README.md) for project documentation
+2. Review existing issues for similar problems
+3. Check error logs: `docker-compose logs`
+4. Create a detailed issue with:
+   - Clear title and description
+   - Steps to reproduce
+   - Expected vs actual behavior
+   - Environment details (OS, Python version, etc.)
+   - Relevant logs
+
+## Recognition
+
+Contributors are recognized in:
+
+1. Project README contributors section
+2. Release notes for merged PRs
+3. GitHub insights/contributors page
+
+Thank you for contributing to Book Finder Agent!
+

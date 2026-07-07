@@ -1,0 +1,104 @@
+version: '3.9'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg15
+    container_name: book_finder_postgres
+    environment:
+      POSTGRES_DB: ${DB_NAME:-book_finder_db}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      PGDATA: /var/lib/postgresql/data/pgdata
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-postgres} -d ${DB_NAME:-book_finder_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - book_finder_network
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: book_finder_redis
+    command: redis-server --appendonly yes --loglevel warning
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - book_finder_network
+    restart: unless-stopped
+
+  book_finder_agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: book_finder_agent
+    environment:
+      FLASK_APP: run.py
+      FLASK_ENV: ${FLASK_ENV:-development}
+      FLASK_DEBUG: ${FLASK_DEBUG:-False}
+      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-book_finder_db}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:-postgres}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      GOOGLE_GENAI_API_KEY: ${GOOGLE_GENAI_API_KEY:-}
+      LLM_MODEL: ${LLM_MODEL:-gpt-4}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:-text-embedding-3-small}
+      EMBEDDING_DIMENSIONS: ${EMBEDDING_DIMENSIONS:-1536}
+      SIMILARITY_THRESHOLD: ${SIMILARITY_THRESHOLD:-0.3}
+      FILTER_SIMILARITY_THRESHOLD: ${FILTER_SIMILARITY_THRESHOLD:-0.65}
+      BOOKS_PER_RESULT: ${BOOKS_PER_RESULT:-5}
+      MAX_BOOKS_PER_RESPONSE: ${MAX_BOOKS_PER_RESPONSE:-3}
+      MAX_EXCERPTS_PER_BOOK: ${MAX_EXCERPTS_PER_BOOK:-5}
+      CONTEXT_WEIGHT_SCORE: ${CONTEXT_WEIGHT_SCORE:-0.5}
+      DOCUMENT_WEIGHT_SCORE: ${DOCUMENT_WEIGHT_SCORE:-0.2}
+      KEYWORD_WEIGHT_SCORE: ${KEYWORD_WEIGHT_SCORE:-0.3}
+      BOOK_TABLE: ${BOOK_TABLE:-book_metadata_v2}
+      BOOK_AUTHOR_TABLE: ${BOOK_AUTHOR_TABLE:-book_author_v2}
+      BOOK_GENRE_TABLE: ${BOOK_GENRE_TABLE:-book_genre_v2}
+      BOOK_EXCERPT_TABLE: ${BOOK_EXCERPT_TABLE:-book_excerpts_v2}
+      ORGANIZATION_TABLE: ${ORGANIZATION_TABLE:-book_publisher}
+      CONTEXT_TABLE: ${CONTEXT_TABLE:-book_retrieved_document_details}
+      GENERATE_RESPONSE_FROM_DOCS: ${GENERATE_RESPONSE_FROM_DOCS:-True}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "${PORT:-5000}:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/app
+      - /app/__pycache__
+    networks:
+      - book_finder_network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+networks:
+  book_finder_network:
+    driver: bridge
+
