@@ -1,0 +1,83 @@
+# Git files
+.git
+.gitignore
+.gitattributes
+
+# Python cache
+__pycache__
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+PIPFILE.lock
+
+# Virtual environments
+venv/
+ENV/
+env/
+.venv
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Temporary files
+*.tmp
+*.log
+.env
+.env.local
+
+# Documentation
+docs/_build/
+
+# Node modules (if any frontend)
+node_modules/
+
+# Reference files
+.ecg/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.circleci/
+
+# Docker related
+Dockerfile
+.dockerignore
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Test data
+test_data/
+tests/
