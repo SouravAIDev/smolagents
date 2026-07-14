@@ -1,0 +1,5 @@
+-- Filter books by metadata using JSONB queries
+-- Executes exact-match and soft filtering on structured attributes
+-- Searches genre, contributor, location, audience, section details
+-- Parameters: metadata filters as JSONB queries
+-- Used during parallel retrieval phase A4

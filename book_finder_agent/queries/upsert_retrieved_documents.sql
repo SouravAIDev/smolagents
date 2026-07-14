@@ -1,0 +1,4 @@
+-- Upsert retrieved documents - insert or update existing records
+-- Uses PostgreSQL ON CONFLICT clause for atomic insert/update
+-- Parameters: session_id, documents array
+-- Used when merging incremental or retry results
