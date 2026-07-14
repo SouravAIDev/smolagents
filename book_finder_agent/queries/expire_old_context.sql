@@ -1,0 +1,4 @@
+-- Expire old session context before new search
+-- Marks previous documents as expired (is_expired=true)
+-- Parameters: session_id
+-- Executed at start of new retrieval flow (A1) to clean stale results

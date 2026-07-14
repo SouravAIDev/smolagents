@@ -1,0 +1,4 @@
+-- Fetch latest question from session context (Flow C1)
+-- Retrieves the most recent user query for a given session_id
+-- Used for pre-filtered question processing with JSONB filters
+-- Parameters: session_id
