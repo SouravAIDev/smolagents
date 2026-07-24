@@ -29,11 +29,7 @@ from llm_studio_agents.utils.utils_traceability import AITrace
 
 import Config
 
-try:
-    from agents.RecommendationAgentBase import RecommendationAgentBase
-except ImportError:
-    # Fallback if RecommendationAgentBase doesn't exist yet
-    from llm_studio_agents.AgentBase import AgentBase as RecommendationAgentBase
+from agents.RecommendationAgentBase import RecommendationAgentBase
 
 from agents.contract_finder_agent.contract_finder_agent_setup import ContractFinderAgentSetup
 from agents.contract_finder_agent.contract_finder_agent_trace import ContractFinderAgentTrace
